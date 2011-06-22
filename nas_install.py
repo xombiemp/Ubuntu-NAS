@@ -1,4 +1,6 @@
 #!/usr/bin/python -tt
+# Written by Andrew Parker
+### This is a script to configure a Ubuntu NAS. ###
 
 import sys
 import os
