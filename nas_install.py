@@ -1,6 +1,31 @@
 #!/usr/bin/python -tt
 # Written by Andrew Parker
-### This is a script to configure a Ubuntu NAS. ###
+
+# This is a script to configure a Ubuntu NAS. 
+# It was designed to be run on a fresh install of Ubuntu server 10.04 that had the OpenSSH and Samba File Server roles installed.
+# It will perform the following: (* = requires user interaction.)
+# - *Create a password for the root account.
+# - Edit the .bashrc files of root and default user to include color and completion and create lla alias.
+# - Install all updates available.
+# - Remove all unnecessary packages.
+# - Remove all kernel files in /boot except for the most recent one.
+# - *Install and configure Postfix to work with a Gmail address. (will prompt for address and password)
+# - *Install mdadm and create a raid 5 device named /dev/md0 using 4 drives that are user specified.
+# - Install lvm2 and create a physical volume on /dev/md0, a volume group named vg with a physical extent of 32 MiB and a logical volume named vol1 taking all free space.
+# - Install xfsprogs and create a xfs partition on the logical volume filling all freespace and set to mount on /mnt/vg/vol1.
+# - *Configure samba by creating a share named data on the xfs file system and creating a smb user. The user will be the same as the default user and it will prompt for a password.
+# - Install rtorrent and rutorrent front end:
+# -- Install all the prereqs including php5 and apache2
+# -- Install xmlrpc from svn.
+# -- Install libtorrent from svn.
+# -- Install rtorrent from svn configured with the --with-xmlrpc-c parameter.
+# -- Create a default .rtorrent.rc config file in /root.
+# -- Install rutorrent from svn.
+# -- Install all rutorrent plugins from svn.
+# -- Install mediainfo, which is a prereq for one of the plugins.
+# -- *Create an auth file for the rutorrent interface. The user will be the same as the default user and it will prompt for a password.
+# -- Create a start up script for rtorrent so it starts on boot without having to login. Control the service with "service rtorrentd start|stop|restart".
+# -- Create an update script in /usr/local/bin named rtorrent_update that updates xmlrpc, libtorrent, rtorrent, rutorrent and all the plugins.
 
 import sys
 import os
