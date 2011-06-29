@@ -224,6 +224,15 @@ ex: 0 1 2 3"""
     
   runBash('partprobe')
   runBash('apt-get install mdadm -y')
+  f = open('/etc/mdadm/mdadm.conf', 'r+')
+  lines = f.readlines()
+  for line in lines[:]:
+    if 'MAILADDR' in line:
+      lines[lines.index(line)] = line.replace('root', email)
+  f.seek(0, 0)
+  f.writelines(lines)
+  f.close()
+  
   runBash(mdadm_cmd)
   firstRun = 1
   while True:
@@ -233,18 +242,7 @@ ex: 0 1 2 3"""
     elif firstRun:
       print 'Building raid array. Please wait...'
       firstRun = 0
-  runBash('mdadm --detail --scan >> /etc/mdadm/mdadm.conf')
-  
-  f = open('/etc/mdadm/mdadm.conf', 'r+')
-  lines = f.readlines()
-  for line in lines[:]:
-    if 'MAILADDR' in line:
-      lines[lines.index(line)] = line.replace('root', email)
-    elif '00.90' in line:
-      lines[lines.index(line)] = line.replace('00.90', '0.90')
-  f.seek(0, 0)
-  f.writelines(lines)
-  f.close()
+  runBash('mdadm --detail --scan | sed "s/00.90/0.90/" >> /etc/mdadm/mdadm.conf')  
   runBash('mdadm --monitor -1 --scan --test')
 
 
