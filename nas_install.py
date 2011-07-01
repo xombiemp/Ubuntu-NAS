@@ -9,7 +9,7 @@
 # - Install all updates available.
 # - Remove all unnecessary packages.
 # - Remove all kernel files in /boot except for the most recent one.
-# - *Install and configure Postfix to work with a Gmail address. (will prompt for address and password)
+# - *Install and configure ssmtp to work with a Gmail address. (will prompt for address and password)
 # - *Install mdadm and create a raid 5 device named /dev/md0 using 4 drives that are user specified.
 # - Install lvm2 and create a physical volume on /dev/md0, a volume group named vg with a physical extent of 32 MiB and a logical volume named vol1 taking all free space.
 # - Install xfsprogs and create a xfs partition on the logical volume filling all freespace and set to mount on /mnt/vg/vol1.
@@ -115,50 +115,11 @@ def main():
     os.remove('/etc/motd.tail')
   
   
-  ### Configure Postfix for email alerts ###
-  print '\nCONFIGURING POSTFIX FOR EMAIL ALERTS\n...............'
+  ### Configure ssmtp for email alerts ###
+  print '\nCONFIGURING SSMTP FOR EMAIL ALERTS\n...............'
   time.sleep(1.5)
-  runBash('DEBIAN_FRONTEND=noninteractive apt-get install postfix -y')
-  shutil.copy('/usr/share/postfix/main.cf.debian', '/etc/postfix/main.cf')
-  postfix_conf = """
-# TLS parameters
-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-smtpd_use_tls=no
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
-
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
-# information on enabling SSL in the smtp client.
-
-myhostname = nas
-alias_maps = hash:/etc/aliases
-alias_database = hash:/etc/aliases
-virtual_alias_maps = hash:/etc/postfix/virtual
-myorigin = gmail.com
-mydestination =
-relayhost = [smtp.gmail.com]:587
-mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
-mailbox_size_limit = 0
-recipient_delimiter = +
-inet_interfaces = loopback-only
-default_transport = smtp
-relay_transport = smtp
-inet_protocols = all
-
-# SASL Settings
-smtp_use_tls=yes
-smtp_sasl_auth_enable = yes
-smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
-smtp_sasl_security_options = noanonymous
-smtp_sasl_tls_security_options = noanonymous
-smtp_tls_CAfile = /etc/postfix/cacert.pem
-"""
-
-  f = open('/etc/postfix/main.cf', 'a')
-  f.write(postfix_conf)
-  f.close()
-
+  runBash('apt-get install ssmtp -y')
+  
   email = raw_input('Type your full Gmail address:\n')
   while True:
     email_passwd = getpass.getpass('\nGmail password:')
@@ -167,20 +128,41 @@ smtp_tls_CAfile = /etc/postfix/cacert.pem
       break
     else:
       print 'Passwords did not match. Try again'
-  f = open('/etc/postfix/sasl_passwd', 'w')
-  f.write('[smtp.gmail.com]:587 ' + email + ':' + email_passwd + '\n')
+  
+  ssmtp_conf="""
+#
+# Config file for sSMTP sendmail
+#
+# The person who gets all mail for userids < 1000
+# Make this empty to disable rewriting.
+root="""+ email +"""
+
+# The place where the mail goes. The actual machine name is required no 
+# MX records are consulted. Commonly mailhosts are named mail.domain.com
+mailhub=smtp.gmail.com:587
+
+# Where will the mail seem to come from?
+rewriteDomain=
+
+# The full hostname
+hostname="""+ email +"""
+
+# Are users allowed to set their own From: address?
+# YES - Allow the user to specify their own From: address
+# NO - Use the system generated From: address
+FromLineOverride=YES
+
+AuthUser="""+ email +"""
+AuthPass="""+ email_passwd +"""
+UseSTARTTLS=YES
+"""
+  f = open('/etc/ssmtp/ssmtp.conf', 'w')
+  f.write(ssmtp_conf)
   f.close()
-  os.chmod('/etc/postfix/sasl_passwd', 0400)
-
-  f = open('/etc/postfix/virtual', 'w')
-  f.write('root\troot@localhost\n' + userName + '\t' + userName + '@localhost\n')
+  
+  f = open('/etc/ssmtp/revaliases', 'a')
+  f.write('\nroot:'+ email +':smtp.gmail.com:587\n'+ userName +':'+ email +':smtp.gmail.com:587\n')
   f.close()
-
-  runBash('postmap /etc/postfix/virtual')
-  runBash('postmap /etc/postfix/sasl_passwd')
-
-  shutil.copy('/etc/ssl/certs/Equifax_Secure_CA.pem', '/etc/postfix/cacert.pem')
-  runBash('/etc/init.d/postfix restart')
 
 
   ### Create Raid Partitions ###
@@ -224,6 +206,8 @@ ex: 0 1 2 3"""
     
   runBash('partprobe')
   runBash('apt-get install mdadm -y')
+  runBash('/etc/init.d/mdadm stop')
+  
   f = open('/etc/mdadm/mdadm.conf', 'r+')
   lines = f.readlines()
   for line in lines[:]:
@@ -242,7 +226,8 @@ ex: 0 1 2 3"""
     elif firstRun:
       print 'Building raid array. Please wait...'
       firstRun = 0
-  runBash('mdadm --detail --scan | sed "s/00.90/0.90/" >> /etc/mdadm/mdadm.conf')  
+  runBash('mdadm --detail --scan | sed "s/00.90/0.90/" >> /etc/mdadm/mdadm.conf')
+  runBash('/etc/init.d/mdadm start')
   runBash('mdadm --monitor -1 --scan --test')
 
 
@@ -732,10 +717,11 @@ fi
   lvSize = re.search(r'[\d.]+ \w+', saveBash('lvdisplay | grep "LV Size"')).group()
   print '\n  Logical Volume vol1 of size', lvSize, 'created on vg'
   time.sleep(1)
-  xfsSize = re.search(r'[\d.]+\w+', saveBash('df -h | grep "/dev/mapper/vg-vol1"')).group()
+  diskFree = re.findall(r'[\d.]+\w+', saveBash('df -h /mnt/vg/vol1/data/'))
+  xfsSize = diskFree[0]
   print '\n  XFS filesystem of size', xfsSize, 'created on vol1 and mounted on /mnt/vg/vol1'
   time.sleep(1)
-  smbSize = re.findall(r'[\d.]+\w+', saveBash('df -h /mnt/vg/vol1/data/'))[2]
+  smbSize = diskFree[2]
   print '\n  Samba share "data" created on XFS filesystem and has', smbSize, 'available'
   time.sleep(1)
   print '\n  Samba user', userName, 'created to access the share'
