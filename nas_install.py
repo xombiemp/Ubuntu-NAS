@@ -159,6 +159,7 @@ UseSTARTTLS=YES
   f = open('/etc/ssmtp/ssmtp.conf', 'w')
   f.write(ssmtp_conf)
   f.close()
+  os.chmod('/etc/ssmtp/ssmtp.conf', 0400)
   
   f = open('/etc/ssmtp/revaliases', 'a')
   f.write('\nroot:'+ email +':smtp.gmail.com:587\n'+ userName +':'+ email +':smtp.gmail.com:587\n')
