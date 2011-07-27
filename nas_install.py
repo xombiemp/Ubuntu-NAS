@@ -180,7 +180,7 @@ ex: 0 1 2 3"""
   
   while True:
     diskIndexes = sys.stdin.readline()
-    if re.search(r'\d+\s\d+\s\d+\s\d+\n', diskIndexes):
+    if re.search(r'^\d+\s\d+\s\d+\s\d+$', diskIndexes):
       diskIndexes = naturallysorted(diskIndexes.split())
       if (all(int(num) < len(disks) for num in diskIndexes)) and (len(list(set(diskIndexes))) == 4):
         break
