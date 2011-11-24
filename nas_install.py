@@ -356,7 +356,7 @@ fi
 
 
 echo "INSTALLING PREREQS"
-sudo apt-get install subversion build-essential automake libtool libcppunit-dev libcurl4-openssl-dev libsigc++-2.0-dev unzip unrar curl libncurses-dev -y
+sudo apt-get install git-core subversion build-essential automake libtool libcppunit-dev libcurl4-openssl-dev libsigc++-2.0-dev unzip unrar curl libncurses-dev -y
 sudo apt-get install apache2 php5 php5-cli php5-curl php5-geoip -y
 
 sudo apt-get install libapache2-mod-scgi -y
@@ -375,7 +375,7 @@ sudo make install
 echo "INSTALLING LIBTORRENT"
 sleep 2
 cd /root/rtorrent/install
-sudo svn checkout svn://rakshasa.no/libtorrent/trunk/libtorrent
+sudo git clone git://github.com/rakshasa/libtorrent.git
 cd libtorrent
 sudo ./autogen.sh
 sudo ./configure
@@ -385,7 +385,7 @@ sudo make install
 echo "INSTALLING RTORRENT"
 sleep 2
 cd /root/rtorrent/install
-sudo svn checkout svn://rakshasa.no/libtorrent/trunk/rtorrent
+sudo git clone git://github.com/rakshasa/rtorrent.git
 cd rtorrent
 sudo ./autogen.sh
 sudo ./configure --with-xmlrpc-c
